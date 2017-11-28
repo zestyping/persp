@@ -44,8 +44,8 @@ th { text-align: left; font-weight: bold; padding-bottom: 6px; }
 <script>
 var PHOTO_WIDTH = 640;
 var PHOTO_HEIGHT = 512;
-var CURSOR_WIDTH = 27;
-var CURSOR_HEIGHT = 27;
+var CURSOR_WIDTH = 17;
+var CURSOR_HEIGHT = 17;
 var PIN_WIDTH = 27;
 var PIN_HEIGHT = 27;
 var PIN_HIT_RADIUS = 10;
@@ -101,7 +101,8 @@ function updatePins() {
 
 function highlightPin(pin) {
   for (var i = 0; i < pins.length; i++) {
-    pins[i].photoImg.src = (pins[i] === pin) ? 'highlighted-pin.png' : 'pin.png';
+    pins[i].photoImg.src = pins[i].worldImg.src =
+        (pins[i] === pin) ? 'highlighted-pin.png' : 'pin.png';
   }
 }
 
