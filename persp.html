@@ -1,65 +1,81 @@
 <style>
-body { margin: 12px; }
-div { margin: 0; padding: 0; }
-div { cursor: none; }
-#canvas { position: relative; }
-#crosshairs { position: absolute; }
-#message { font-family: andale mono, courier new, monospace; font-size: 24px; }
+body { font-family: helvetica neue, arial, sans-serif; font-size: 14px; }
+.view { display: inline-block; vertical-align: top; position: relative; margin: 12px; }
+.canvas { cursor: none; }
+.cursor { position: absolute; cursor: none; }
+.message { font-family: andale mono, courier new, monospace; font-size: 24px; }
+.heading { font-weight: bold; margin-bottom: 6px; }
 </style>
 
-<div id="canvas">
-  <img id="photo" src="photo.jpg">
-  <div id="crosshairs">
-    <img src="crosshairs.png">
-  </div>
+<div id="photo" class="view">
+  <div class="heading">Photo</div>
+  <img id="photo-canvas" class="canvas" src="photo.jpg">
+  <img id="photo-cursor" class="cursor" src="crosshairs.png">
+  <pre id="photo-status" class="message"></pre>
 </div>
-
-<div id="message">
+<div id="world" class="view">
+  <div class="heading">World</div>
+  <div id="world-canvas" class="canvas"></div>
+  <img id="world-cursor" class="cursor" src="crosshairs.png">
+  <pre id="world-status" class="message"></pre>
 </div>
 
 <script src="jquery-1.5.1.min.js"></script>
 <script>
-var PHOTO_WIDTH = 1280;
-var PHOTO_HEIGHT = 720;
+var MARGIN = 12;
+var PHOTO_WIDTH = 640;
+var PHOTO_HEIGHT = 512;
 var CROSSHAIRS_WIDTH = 27;
 var CROSSHAIRS_HEIGHT = 27;
 
 var photo = $('#photo')[0];
-var photoLeft = 0;
-var photoTop = 0;
-for (var e = photo; e.parentElement; e = e.parentElement) {
-  photoLeft += e.offsetLeft;
-  photoTop += e.offsetTop;
+var photoCanvas = $('#photo-canvas')[0];
+var photoCursor = $('#photo-cursor')[0];
+var world = $('#world')[0];
+var worldCanvas = $('#world-canvas')[0];
+var worldCursor = $('#world-cursor')[0];
+
+photoCanvas.style.width = PHOTO_WIDTH + 'px';
+photoCanvas.style.height = PHOTO_HEIGHT + 'px';
+worldCanvas.style.width = PHOTO_WIDTH + 'px';
+worldCanvas.style.height = PHOTO_HEIGHT + 'px';
+
+var photoCanvasLeft = 0;
+var photoCanvasTop = 0;
+for (var e = photoCanvas; e; e = e.parentElement) {
+  photoCanvasLeft += e.offsetLeft;
+  photoCanvasTop += e.offsetTop;
 }
 
-var canvas = $('#canvas')[0];
-canvas.style.width = PHOTO_WIDTH + 'px';
-canvas.style.height = PHOTO_HEIGHT + 'px';
-
-var crosshairs = $('#crosshairs')[0];
-crosshairs.style.width = CROSSHAIRS_WIDTH + 'px';
-crosshairs.style.height = CROSSHAIRS_HEIGHT + 'px';
-
-function moveCrosshairs(x, y) {
-  crosshairs.style.left = (x - (CROSSHAIRS_WIDTH - 1)/2) + 'px';
-  crosshairs.style.top = (y - (CROSSHAIRS_HEIGHT - 1)/2) + 'px';
+function movePhotoCursor(x, y) {
+  photoCursor.style.left = (photoCanvas.offsetLeft + x - (CROSSHAIRS_WIDTH - 1)/2) + 'px';
+  photoCursor.style.top = (photoCanvas.offsetTop + y - (CROSSHAIRS_HEIGHT - 1)/2) + 'px';
+  photoCursor.style.width = CROSSHAIRS_WIDTH + 'px';
+  photoCursor.style.height = CROSSHAIRS_HEIGHT + 'px';
 }
 
-function hideCrosshairs() {
-  moveCrosshairs(-1000, -1000);
+function hidePhotoCursor() {
+  movePhotoCursor(-1000, -1000);
 }
 
-canvas.addEventListener('mousemove', function(event) {
-  var x = event.pageX - photoLeft;
-  var y = event.pageY - photoTop;
+function photoToWorld(x, y) {
+  return [x / PHOTO_WIDTH, y / PHOTO_HEIGHT];
+}
+
+function worldToPhoto(x, y) {
+  return [x * PHOTO_WIDTH, y * PHOTO_HEIGHT];
+}
+
+photo.addEventListener('mousemove', function(event) {
+  console.log(event);
+  var x = event.pageX - photoCanvasLeft;
+  var y = event.pageY - photoCanvasTop;
   if (x >= 0 && x < PHOTO_WIDTH && y >= 0 && y < PHOTO_HEIGHT) {
-    $('#message').text(x + ', ' + y);
-    moveCrosshairs(x, y);
+    $('#photo-status').text('x = ' + x + '\ny = ' + y);
+    movePhotoCursor(x, y);
   } else {
-    $('#message').text('');
-    hideCrosshairs();
+    $('#photo-status').text('');
+    hidePhotoCursor();
   }
 });
-
-
 </script>
