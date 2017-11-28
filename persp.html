@@ -1,24 +1,33 @@
 <style>
-body { font-family: helvetica neue, arial, sans-serif; font-size: 14px; }
-.view { display: inline-block; vertical-align: top; position: relative; margin: 12px; }
+body { font-family: helvetica neue, sans-serif; font-size: 14px; margin: 18px; }
+table th, table td { padding-right: 18px; }
+.view { position: relative; }
 .canvas { cursor: none; }
 .cursor { position: absolute; cursor: none; }
 .message { font-family: andale mono, courier new, monospace; font-size: 24px; }
-.heading { font-weight: bold; margin-bottom: 6px; }
+th { text-align: left; font-weight: bold; padding-bottom: 6px; }
 </style>
 
-<div id="photo" class="view">
-  <div class="heading">Photo</div>
-  <img id="photo-canvas" class="canvas" src="photo.jpg">
-  <img id="photo-cursor" class="cursor" src="crosshairs.png">
-  <pre id="photo-status" class="message"></pre>
-</div>
-<div id="world" class="view">
-  <div class="heading">World</div>
-  <div id="world-canvas" class="canvas"></div>
-  <img id="world-cursor" class="cursor" src="crosshairs.png">
-  <pre id="world-status" class="message"></pre>
-</div>
+<table cellspacing=0 cellpadding=0>
+  <tr>
+    <th>Photo</th>
+    <th>World</th>
+  </tr>
+  <tr>
+    <td id="photo" class="view">
+      <img id="photo-canvas" class="canvas" src="photo.jpg">
+      <img id="photo-cursor" class="cursor" src="crosshairs.png">
+    </td>
+    <td id="world" class="view">
+      <div id="world-canvas" class="canvas"></div>
+      <img id="world-cursor" class="cursor" src="crosshairs.png">
+    </td>
+  </tr>
+  <tr>
+    <td><pre id="photo-status" class="message"></pre></td>
+    <td><pre id="world-status" class="message"></pre></td>
+  </tr>
+</table>
 
 <script src="jquery-1.5.1.min.js"></script>
 <script>
@@ -42,7 +51,7 @@ worldCanvas.style.height = PHOTO_HEIGHT + 'px';
 
 var photoCanvasLeft = 0;
 var photoCanvasTop = 0;
-for (var e = photoCanvas; e; e = e.parentElement) {
+for (var e = photoCanvas; e; e = e.offsetParent) {
   photoCanvasLeft += e.offsetLeft;
   photoCanvasTop += e.offsetTop;
 }
