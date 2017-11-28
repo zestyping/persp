@@ -48,6 +48,7 @@ var CURSOR_WIDTH = 27;
 var CURSOR_HEIGHT = 27;
 var PIN_WIDTH = 27;
 var PIN_HEIGHT = 27;
+var PIN_HIT_RADIUS = 10;
 
 var photo = $('#photo')[0];
 var photoCanvas = $('#photo-canvas')[0];
@@ -62,6 +63,8 @@ photoCanvas.style.height = PHOTO_HEIGHT + 'px';
 worldCanvas.style.width = PHOTO_WIDTH + 'px';
 worldCanvas.style.height = PHOTO_HEIGHT + 'px';
 
+var hoveredPin = null;
+var grabbedPin = null;
 var pins = [
   {'photo': [PHOTO_WIDTH * 0.2, PHOTO_HEIGHT * 0.8], 'world': [0, 0]},
   {'photo': [PHOTO_WIDTH * 0.8, PHOTO_HEIGHT * 0.8], 'world': [10, 0]},
@@ -70,29 +73,35 @@ var pins = [
 ];
 
 for (var i = 0; i < pins.length; i++) {
-  pins[i].photoDiv = $('<div class="pin"><img src="pin.png"></div>')[0];
-  pins[i].worldDiv = $('<div class="pin"><img src="pin.png"></div>')[0];
-  $('#photo').append(pins[i].photoDiv);
-  $('#world').append(pins[i].worldDiv);
+  pins[i].photoImg = $('<img class="pin" src="pin.png">')[0];
+  pins[i].worldImg = $('<img class="pin" src="pin.png">')[0];
+  $('#photo').append(pins[i].photoImg);
+  $('#world').append(pins[i].worldImg);
 }
 
-function showPin(pinDiv, canvas, x, y) {
-  pinDiv.style.left = (canvas.offsetLeft + x - (PIN_WIDTH - 1)/2) + 'px';
-  pinDiv.style.top = (canvas.offsetTop + y - (PIN_HEIGHT - 1)/2) + 'px';
-  pinDiv.style.width = PIN_WIDTH + 'px';
-  pinDiv.style.height = PIN_HEIGHT + 'px';
+function showPin(pinImg, canvas, x, y) {
+  pinImg.style.left = (canvas.offsetLeft + x - (PIN_WIDTH - 1)/2) + 'px';
+  pinImg.style.top = (canvas.offsetTop + y - (PIN_HEIGHT - 1)/2) + 'px';
+  pinImg.style.width = PIN_WIDTH + 'px';
+  pinImg.style.height = PIN_HEIGHT + 'px';
 }
 
 function updatePin(pin) {
-  showPin(pin.photoDiv, photoCanvas, pin.photo[0], pin.photo[1]);
+  showPin(pin.photoImg, photoCanvas, pin.photo[0], pin.photo[1]);
   var wpx = worldOriginX + pin.world[0]*worldScale;
   var wpy = worldOriginY - pin.world[1]*worldScale;
-  showPin(pin.worldDiv, worldCanvas, wpx, wpy);
+  showPin(pin.worldImg, worldCanvas, wpx, wpy);
 }
 
 function updatePins() {
   for (var i = 0; i < pins.length; i++) {
     updatePin(pins[i]);
+  }
+}
+
+function highlightPin(pin) {
+  for (var i = 0; i < pins.length; i++) {
+    pins[i].photoImg.src = (pins[i] === pin) ? 'selected-pin.png' : 'pin.png';
   }
 }
 
@@ -185,12 +194,39 @@ function worldToPhoto(x, y) {
           yl + (yh - yl) * (y / worldHeight)];
 }
 
+photo.addEventListener('click', function(event) {
+  if (grabbedPin) {  // drop it
+    showPhotoCursor(grabbedPin.photo[0], grabbedPin.photo[1]);
+    grabbedPin = null;
+  } else {
+    if (hoveredPin) {  // grab it
+      hideCursors();
+      grabbedPin = hoveredPin;
+    }
+  }
+});
+
 photo.addEventListener('mousemove', function(event) {
   var offset = $('#photo-canvas').offset();
   var x = event.pageX - offset.left;
   var y = event.pageY - offset.top;
   if (x >= 0 && x < PHOTO_WIDTH && y >= 0 && y < PHOTO_HEIGHT) {
-    updateCursors([x, y], photoToWorld(x, y));
+    if (grabbedPin) {
+      hideCursors();
+      grabbedPin.photo[0] = x;
+      grabbedPin.photo[1] = y;
+      updatePin(grabbedPin);
+    } else {
+      updateCursors([x, y], photoToWorld(x, y));
+      hoveredPin = null;
+      for (var i = 0; i < pins.length; i++) {
+        if (Math.abs(pins[i].photo[0] - x) < PIN_HIT_RADIUS &&
+            Math.abs(pins[i].photo[1] - y) < PIN_HIT_RADIUS) {
+          hoveredPin = pins[i];
+        }
+      }
+      highlightPin(hoveredPin);
+    }
   } else {
     hideCursors();
   }
