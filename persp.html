@@ -1,13 +1,13 @@
 <style>
 body { font-family: helvetica neue, sans-serif; font-size: 14px; margin: 18px; }
-table th, table td { padding-right: 18px; }
+table th, table td { padding-right: 18px; vertical-align: top; }
 #world-settings { float: right; }
 #world-settings, #world-settings input { font-family: andale mono, monospace; font-size: 24px; }
 .view { position: relative; }
 .canvas { cursor: none; }
 .cursor { position: absolute; cursor: none; z-index: 1; }
 .pin { position: absolute; cursor: none; }
-.message { font-family: andale mono, monospace; font-size: 24px; }
+.message { font-family: andale mono, monospace; font-size: 24px; margin: 0; }
 #world-rect { position: absolute; border: 1px solid black; }
 th { text-align: left; font-weight: bold; padding-bottom: 6px; }
 </style>
@@ -35,12 +35,17 @@ th { text-align: left; font-weight: bold; padding-bottom: 6px; }
     </td>
   </tr>
   <tr>
-    <td><pre id="photo-status" class="message"></pre></td>
+    <td>
+      <pre id="photo-status" class="message">&nbsp;</pre>
+      <pre id="photo-help" class="message">&nbsp;</pre>
+    </td>
     <td><pre id="world-status" class="message"></pre></td>
   </tr>
 </table>
+<pre id="transform" class="message"></pre>
 
 <script src="jquery-1.5.1.min.js"></script>
+<script src="projection.js"></script>
 <script>
 var PHOTO_WIDTH = 640;
 var PHOTO_HEIGHT = 512;
@@ -71,6 +76,8 @@ var pins = [
   {'photo': [PHOTO_WIDTH * 0.2, PHOTO_HEIGHT * 0.2], 'world': [0, 10]},
   {'photo': [PHOTO_WIDTH * 0.8, PHOTO_HEIGHT * 0.2], 'world': [10, 10]},
 ];
+var photoToWorld;
+var worldToPhoto;
 
 for (var i = 0; i < pins.length; i++) {
   pins[i].photoImg = $('<img class="pin" src="pin.png">')[0];
@@ -86,17 +93,26 @@ function showPin(pinImg, canvas, x, y) {
   pinImg.style.height = PIN_HEIGHT + 'px';
 }
 
-function updatePin(pin) {
-  showPin(pin.photoImg, photoCanvas, pin.photo[0], pin.photo[1]);
-  var wpx = worldOriginX + pin.world[0]*worldScale;
-  var wpy = worldOriginY - pin.world[1]*worldScale;
-  showPin(pin.worldImg, worldCanvas, wpx, wpy);
-}
-
 function updatePins() {
   for (var i = 0; i < pins.length; i++) {
-    updatePin(pins[i]);
+    showPin(pins[i].photoImg, photoCanvas, pins[i].photo[0], pins[i].photo[1]);
+    var wpx = worldOriginX + pins[i].world[0]*worldScale;
+    var wpy = worldOriginY - pins[i].world[1]*worldScale;
+    showPin(pins[i].worldImg, worldCanvas, wpx, wpy);
   }
+  var result = computeTransforms(pins);
+  photoToWorld = result[0];
+  worldToPhoto = result[1];
+
+  var c = [];
+  for (var i = 0; i < photoToWorld.length; i++) {
+    c.push(photoToWorld[i].toFixed(6));
+  }
+  $('#transform').text(
+    '\nd = ' + c[6] + ' x + ' + c[7] + ' y + 1' +
+    '\nwx = (' + c[0] + ' x + ' + c[1] + ' y + ' + c[2] + ') / d' +
+    '\nwy = (' + c[3] + ' x + ' + c[4] + ' y + ' + c[5] + ') / d'
+  );
 }
 
 function highlightPin(pin) {
@@ -130,6 +146,7 @@ function updateWorldRect() {
   updatePins();
 }
 
+hideCursors();
 updateWorldRect();
 $('#world-settings input').change(updateWorldRect);
 
@@ -171,54 +188,40 @@ function updateCursors(photoXy, worldXy) {
 }
 
 function hideCursors() {
-  $('#photo-status').text('');
-  $('#world-status').text('');
+  $('#photo-status').text(' \n ');
+  $('#world-status').text(' \n ');
   photoCursor.style.display = 'none';
   worldCursor.style.display = 'none';
 }
 
-function photoToWorld(x, y) {
-  var xl = pins[0].photo[0];
-  var yl = pins[0].photo[1];
-  var xh = pins[3].photo[0];
-  var yh = pins[3].photo[1];
-  return [(x - xl) / (xh - xl) * worldWidth,
-          (y - yl) / (yh - yl) * worldHeight];
-}
-
-function worldToPhoto(x, y) {
-  var xl = pins[0].photo[0];
-  var yl = pins[0].photo[1];
-  var xh = pins[3].photo[0];
-  var yh = pins[3].photo[1];
-  return [xl + (xh - xl) * (x / worldWidth),
-          yl + (yh - yl) * (y / worldHeight)];
-}
-
 photo.addEventListener('click', function(event) {
   if (grabbedPin) {  // drop it
-    showPhotoCursor(grabbedPin.photo[0], grabbedPin.photo[1]);
+    var x = grabbedPin.photo[0], y = grabbedPin.photo[1];
     grabbedPin = null;
-  } else {
-    if (hoveredPin) {  // grab it
-      hideCursors();
-      grabbedPin = hoveredPin;
-    }
+    updatePhotoCursor(x, y);
+  } else if (hoveredPin) {  // grab it
+    grabbedPin = hoveredPin;
+    updatePhotoCursor(grabbedPin.photo[0], grabbedPin.photo[1]);
   }
 });
 
 photo.addEventListener('mousemove', function(event) {
   var offset = $('#photo-canvas').offset();
-  var x = event.pageX - offset.left;
-  var y = event.pageY - offset.top;
+  updatePhotoCursor(event.pageX - offset.left, event.pageY - offset.top);
+});
+
+function updatePhotoCursor(x, y) {
   if (x >= 0 && x < PHOTO_WIDTH && y >= 0 && y < PHOTO_HEIGHT) {
     if (grabbedPin) {
       hideCursors();
+      $('#photo-status').text('x = ' + x + '\n' +
+                              'y = ' + y);
+      $('#photo-help').text('click to drop');
       grabbedPin.photo[0] = x;
       grabbedPin.photo[1] = y;
-      updatePin(grabbedPin);
+      updatePins();
     } else {
-      updateCursors([x, y], photoToWorld(x, y));
+      updateCursors([x, y], applyTransform(photoToWorld, x, y));
       hoveredPin = null;
       for (var i = 0; i < pins.length; i++) {
         if (Math.abs(pins[i].photo[0] - x) < PIN_HIT_RADIUS &&
@@ -227,11 +230,12 @@ photo.addEventListener('mousemove', function(event) {
         }
       }
       highlightPin(hoveredPin);
+      $('#photo-help').text(hoveredPin ? 'click to grab' : ' ');
     }
   } else {
     hideCursors();
   }
-});
+}
 
 world.addEventListener('mousemove', function(event) {
   var offset = $('#world-canvas').offset();
@@ -240,7 +244,7 @@ world.addEventListener('mousemove', function(event) {
   if (x >= 0 && x < PHOTO_WIDTH && y >= 0 && y < PHOTO_HEIGHT) {
     var wx = (x - worldOriginX) / worldScale;
     var wy = (worldOriginY - y) / worldScale;
-    updateCursors(worldToPhoto(wx, wy), [wx, wy]);
+    updateCursors(applyTransform(worldToPhoto, wx, wy), [wx, wy]);
   } else {
     hideCursors();
   }
