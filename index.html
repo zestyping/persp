@@ -7,7 +7,7 @@ table th, table td { padding-right: 18px; vertical-align: top; }
 .canvas { cursor: none; }
 .cursor { position: absolute; cursor: none; z-index: 1; }
 .pin { position: absolute; cursor: none; }
-.message { font-family: andale mono, monospace; font-size: 24px; margin: 0; }
+.message { font-family: andale mono, monospace; font-size: 24px; }
 #world-rect { position: absolute; border: 1px solid black; }
 th { text-align: left; font-weight: bold; padding-bottom: 6px; }
 </style>
@@ -36,13 +36,15 @@ th { text-align: left; font-weight: bold; padding-bottom: 6px; }
   </tr>
   <tr>
     <td>
-      <pre id="photo-status" class="message">&nbsp;</pre>
-      <pre id="photo-help" class="message">&nbsp;</pre>
+      <pre id="photo-status" class="message"></pre>
+      <pre id="photo-help" class="message"></pre>
     </td>
-    <td><pre id="world-status" class="message"></pre></td>
+    <td>
+      <pre id="world-status" class="message"></pre>
+      <pre id="transform" class="message"></pre>
+    </td>
   </tr>
 </table>
-<pre id="transform" class="message"></pre>
 
 <script src="jquery-1.5.1.min.js"></script>
 <script src="projection.js"></script>
@@ -109,7 +111,7 @@ function updatePins() {
     c.push(photoToWorld[i].toFixed(6));
   }
   $('#transform').text(
-    '\nd = ' + c[6] + ' x + ' + c[7] + ' y + 1' +
+    'd = ' + c[6] + ' x + ' + c[7] + ' y + 1' +
     '\nwx = (' + c[0] + ' x + ' + c[1] + ' y + ' + c[2] + ') / d' +
     '\nwy = (' + c[3] + ' x + ' + c[4] + ' y + ' + c[5] + ') / d'
   );
@@ -183,8 +185,8 @@ function updateCursors(photoXy, worldXy) {
   showWorldCursor(wx, wy);
   $('#photo-status').text('x = ' + px + '\n' +
                           'y = ' + py);
-  $('#world-status').text('x = ' + wx.toFixed(2) + 'm\n' +
-                          'y = ' + wy.toFixed(2) + 'm');
+  $('#world-status').text('wx = ' + wx.toFixed(2) + 'm\n' +
+                          'wy = ' + wy.toFixed(2) + 'm');
 }
 
 function hideCursors() {
