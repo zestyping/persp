@@ -5,7 +5,7 @@ table th, table td { padding-right: 18px; }
 #world-settings, #world-settings input { font-family: andale mono, monospace; font-size: 24px; }
 .view { position: relative; }
 .canvas { cursor: none; }
-.cursor { position: absolute; cursor: none; }
+.cursor, .pin { position: absolute; cursor: none; }
 .message { font-family: andale mono, monospace; font-size: 24px; }
 #world-rect { position: absolute; border: 1px solid black; }
 th { text-align: left; font-weight: bold; padding-bottom: 6px; }
@@ -24,13 +24,13 @@ th { text-align: left; font-weight: bold; padding-bottom: 6px; }
   <tr>
     <td id="photo" class="view">
       <img id="photo-canvas" class="canvas" src="photo.jpg">
-      <img id="photo-cursor" class="cursor" src="crosshairs.png">
+      <img id="photo-cursor" class="cursor" src="cursor.png">
     </td>
     <td id="world" class="view">
       <div id="world-canvas" class="canvas">
         <div id="world-rect"></div>
       </div>
-      <img id="world-cursor" class="cursor" src="crosshairs.png">
+      <img id="world-cursor" class="cursor" src="cursor.png">
     </td>
   </tr>
   <tr>
@@ -43,15 +43,10 @@ th { text-align: left; font-weight: bold; padding-bottom: 6px; }
 <script>
 var PHOTO_WIDTH = 640;
 var PHOTO_HEIGHT = 512;
-var CROSSHAIRS_WIDTH = 27;
-var CROSSHAIRS_HEIGHT = 27;
-
-var pins = [
-  {'photo': [PHOTO_WIDTH * 0.2, PHOTO_HEIGHT * 0.8], 'world': [0, 0]},
-  {'photo': [PHOTO_WIDTH * 0.8, PHOTO_HEIGHT * 0.8], 'world': [10, 0]},
-  {'photo': [PHOTO_WIDTH * 0.2, PHOTO_HEIGHT * 0.2], 'world': [0, 10]},
-  {'photo': [PHOTO_WIDTH * 0.8, PHOTO_HEIGHT * 0.2], 'world': [10, 10]},
-];
+var CURSOR_WIDTH = 27;
+var CURSOR_HEIGHT = 27;
+var PIN_WIDTH = 27;
+var PIN_HEIGHT = 27;
 
 var photo = $('#photo')[0];
 var photoCanvas = $('#photo-canvas')[0];
@@ -65,6 +60,40 @@ photoCanvas.style.width = PHOTO_WIDTH + 'px';
 photoCanvas.style.height = PHOTO_HEIGHT + 'px';
 worldCanvas.style.width = PHOTO_WIDTH + 'px';
 worldCanvas.style.height = PHOTO_HEIGHT + 'px';
+
+var pins = [
+  {'photo': [PHOTO_WIDTH * 0.2, PHOTO_HEIGHT * 0.8], 'world': [0, 0]},
+  {'photo': [PHOTO_WIDTH * 0.8, PHOTO_HEIGHT * 0.8], 'world': [10, 0]},
+  {'photo': [PHOTO_WIDTH * 0.2, PHOTO_HEIGHT * 0.2], 'world': [0, 10]},
+  {'photo': [PHOTO_WIDTH * 0.8, PHOTO_HEIGHT * 0.2], 'world': [10, 10]},
+];
+
+for (var i = 0; i < pins.length; i++) {
+  pins[i].photoDiv = $('<div class="pin"><img src="pin.png"></div>')[0];
+  pins[i].worldDiv = $('<div class="pin"><img src="pin.png"></div>')[0];
+  $('#photo').append(pins[i].photoDiv);
+  $('#world').append(pins[i].worldDiv);
+}
+
+function showPin(pinDiv, canvas, x, y) {
+  pinDiv.style.left = (canvas.offsetLeft + x - (PIN_WIDTH - 1)/2) + 'px';
+  pinDiv.style.top = (canvas.offsetTop + y - (PIN_HEIGHT - 1)/2) + 'px';
+  pinDiv.style.width = PIN_WIDTH + 'px';
+  pinDiv.style.height = PIN_HEIGHT + 'px';
+}
+
+function updatePin(pin) {
+  showPin(pin.photoDiv, photoCanvas, pin.photo[0], pin.photo[1]);
+  var wpx = worldOriginX + pin.world[0]*worldScale;
+  var wpy = worldOriginY - pin.world[1]*worldScale;
+  showPin(pin.worldDiv, worldCanvas, wpx, wpy);
+}
+
+function updatePins() {
+  for (var i = 0; i < pins.length; i++) {
+    updatePin(pins[i]);
+  }
+}
 
 var worldWidth;
 var worldHeight;
@@ -81,12 +110,13 @@ function updateWorldRect() {
   worldOriginY = (PHOTO_HEIGHT / 2) + (worldHeight*worldScale / 2);
   worldRect.style.left = worldOriginX + 'px';
   worldRect.style.top = (worldOriginY - worldHeight*worldScale) + 'px';
-  worldRect.style.width = (worldWidth*worldScale) + 'px';
-  worldRect.style.height = (worldHeight*worldScale) + 'px';
+  worldRect.style.width = (worldWidth*worldScale - 1) + 'px';
+  worldRect.style.height = (worldHeight*worldScale - 1) + 'px';
   pins[0].world = [0, 0];
   pins[1].world = [worldWidth, 0];
   pins[2].world = [0, worldHeight];
   pins[3].world = [worldWidth, worldHeight];
+  updatePins();
 }
 
 updateWorldRect();
@@ -94,10 +124,10 @@ $('#world-settings input').change(updateWorldRect);
 
 function showCursor(cursor, canvas, x, y) {
   cursor.style.display = 'block';
-  cursor.style.left = (canvas.offsetLeft + x - (CROSSHAIRS_WIDTH - 1)/2) + 'px';
-  cursor.style.top = (canvas.offsetTop + y - (CROSSHAIRS_HEIGHT - 1)/2) + 'px';
-  cursor.style.width = CROSSHAIRS_WIDTH + 'px';
-  cursor.style.height = CROSSHAIRS_HEIGHT + 'px';
+  cursor.style.left = (canvas.offsetLeft + x - (CURSOR_WIDTH - 1)/2) + 'px';
+  cursor.style.top = (canvas.offsetTop + y - (CURSOR_HEIGHT - 1)/2) + 'px';
+  cursor.style.width = CURSOR_WIDTH + 'px';
+  cursor.style.height = CURSOR_HEIGHT + 'px';
 }
 
 function showPhotoCursor(x, y) {
@@ -169,7 +199,6 @@ world.addEventListener('mousemove', function(event) {
   var offset = $('#world-canvas').offset();
   var x = event.pageX - offset.left;
   var y = event.pageY - offset.top;
-  console.log('world', x, y);
   if (x >= 0 && x < PHOTO_WIDTH && y >= 0 && y < PHOTO_HEIGHT) {
     var wx = (x - worldOriginX) / worldScale;
     var wy = (worldOriginY - y) / worldScale;
