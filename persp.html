@@ -16,8 +16,8 @@ th { text-align: left; font-weight: bold; padding-bottom: 6px; }
     <th>Photo</th>
     <th>World
       <div id="world-settings">
-        <input id="world-width" size=5>m x
-        <input id="world-height" size=5>m
+        <input id="world-width" value="10.0" size=5>m x
+        <input id="world-height" value="10.0" size=5>m
       </div>
     </th>
   </tr>
@@ -46,13 +46,12 @@ var PHOTO_HEIGHT = 512;
 var CROSSHAIRS_WIDTH = 27;
 var CROSSHAIRS_HEIGHT = 27;
 
-var worldWidth = 5;
-var worldHeight = 5;
-var worldOriginX = 0;
-var worldOriginY = PHOTO_HEIGHT;
-var worldScale = (PHOTO_WIDTH * 0.8) / worldWidth;
-$('#world-width').val(worldWidth.toFixed(1));
-$('#world-height').val(worldHeight.toFixed(1));
+var pins = [
+  {'photo': [PHOTO_WIDTH * 0.2, PHOTO_HEIGHT * 0.8], 'world': [0, 0]},
+  {'photo': [PHOTO_WIDTH * 0.8, PHOTO_HEIGHT * 0.8], 'world': [10, 0]},
+  {'photo': [PHOTO_WIDTH * 0.2, PHOTO_HEIGHT * 0.2], 'world': [0, 10]},
+  {'photo': [PHOTO_WIDTH * 0.8, PHOTO_HEIGHT * 0.2], 'world': [10, 10]},
+];
 
 var photo = $('#photo')[0];
 var photoCanvas = $('#photo-canvas')[0];
@@ -67,6 +66,12 @@ photoCanvas.style.height = PHOTO_HEIGHT + 'px';
 worldCanvas.style.width = PHOTO_WIDTH + 'px';
 worldCanvas.style.height = PHOTO_HEIGHT + 'px';
 
+var worldWidth;
+var worldHeight;
+var worldOriginX;
+var worldOriginY;
+var worldScale;
+
 function updateWorldRect() {
   worldWidth = $('#world-width').val() - 0;
   worldHeight = $('#world-height').val() - 0;
@@ -78,9 +83,16 @@ function updateWorldRect() {
   worldRect.style.top = (worldOriginY - worldHeight*worldScale) + 'px';
   worldRect.style.width = (worldWidth*worldScale) + 'px';
   worldRect.style.height = (worldHeight*worldScale) + 'px';
+  pins[0].world = [0, 0];
+  pins[1].world = [worldWidth, 0];
+  pins[2].world = [0, worldHeight];
+  pins[3].world = [worldWidth, worldHeight];
 }
 
-function moveCursor(cursor, canvas, x, y) {
+updateWorldRect();
+$('#world-settings input').change(updateWorldRect);
+
+function showCursor(cursor, canvas, x, y) {
   cursor.style.display = 'block';
   cursor.style.left = (canvas.offsetLeft + x - (CROSSHAIRS_WIDTH - 1)/2) + 'px';
   cursor.style.top = (canvas.offsetTop + y - (CROSSHAIRS_HEIGHT - 1)/2) + 'px';
@@ -88,19 +100,19 @@ function moveCursor(cursor, canvas, x, y) {
   cursor.style.height = CROSSHAIRS_HEIGHT + 'px';
 }
 
-function movePhotoCursor(x, y) {
+function showPhotoCursor(x, y) {
   if (x >= 0 && x < PHOTO_WIDTH && y >= 0 && y < PHOTO_HEIGHT) {
-    moveCursor(photoCursor, photoCanvas, x, y);
+    showCursor(photoCursor, photoCanvas, x, y);
   } else {
     photoCursor.style.display = 'none';
   }
 }
 
-function moveWorldCursor(x, y) {
+function showWorldCursor(x, y) {
   var cx = worldOriginX + x*worldScale;
   var cy = worldOriginY - y*worldScale;
   if (cx >= 0 && cx < PHOTO_WIDTH && cy >= 0 && cy < PHOTO_HEIGHT) {
-    moveCursor(worldCursor, worldCanvas, cx, cy);
+    showCursor(worldCursor, worldCanvas, cx, cy);
   } else {
     worldCursor.style.display = 'none';
   }
@@ -109,8 +121,8 @@ function moveWorldCursor(x, y) {
 function updateCursors(photoXy, worldXy) {
   var px = Math.floor(photoXy[0]), py = Math.floor(photoXy[1]);
   var wx = worldXy[0], wy = worldXy[1];
-  movePhotoCursor(px, py);
-  moveWorldCursor(wx, wy);
+  showPhotoCursor(px, py);
+  showWorldCursor(wx, wy);
   $('#photo-status').text('x = ' + px + '\n' +
                           'y = ' + py);
   $('#world-status').text('x = ' + wx.toFixed(2) + 'm\n' +
@@ -125,11 +137,21 @@ function hideCursors() {
 }
 
 function photoToWorld(x, y) {
-  return [x / PHOTO_WIDTH, 1 - (y / PHOTO_HEIGHT)];
+  var xl = pins[0].photo[0];
+  var yl = pins[0].photo[1];
+  var xh = pins[3].photo[0];
+  var yh = pins[3].photo[1];
+  return [(x - xl) / (xh - xl) * worldWidth,
+          (y - yl) / (yh - yl) * worldHeight];
 }
 
 function worldToPhoto(x, y) {
-  return [x * PHOTO_WIDTH, (1 - y) * PHOTO_HEIGHT];
+  var xl = pins[0].photo[0];
+  var yl = pins[0].photo[1];
+  var xh = pins[3].photo[0];
+  var yh = pins[3].photo[1];
+  return [xl + (xh - xl) * (x / worldWidth),
+          yl + (yh - yl) * (y / worldHeight)];
 }
 
 photo.addEventListener('mousemove', function(event) {
@@ -156,7 +178,4 @@ world.addEventListener('mousemove', function(event) {
     hideCursors();
   }
 });
-
-updateWorldRect();
-$('#world-settings input').change(updateWorldRect);
 </script>
