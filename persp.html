@@ -6,7 +6,7 @@ table th, table td { padding-right: 18px; }
 .view { position: relative; }
 .canvas { cursor: none; }
 .cursor { position: absolute; cursor: none; z-index: 1; }
-.pin { position: absolute; }
+.pin { position: absolute; cursor: none; }
 .message { font-family: andale mono, monospace; font-size: 24px; }
 #world-rect { position: absolute; border: 1px solid black; }
 th { text-align: left; font-weight: bold; padding-bottom: 6px; }
@@ -101,7 +101,7 @@ function updatePins() {
 
 function highlightPin(pin) {
   for (var i = 0; i < pins.length; i++) {
-    pins[i].photoImg.src = (pins[i] === pin) ? 'selected-pin.png' : 'pin.png';
+    pins[i].photoImg.src = (pins[i] === pin) ? 'highlighted-pin.png' : 'pin.png';
   }
 }
 
