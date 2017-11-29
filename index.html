@@ -75,10 +75,10 @@ worldCanvas.style.height = PHOTO_HEIGHT + 'px';
 var hoveredPin = null;
 var grabbedPin = null;
 var pins = [
-  {'photo': [PHOTO_WIDTH * 0.2, PHOTO_HEIGHT * 0.8], 'world': [0, 0]},
-  {'photo': [PHOTO_WIDTH * 0.8, PHOTO_HEIGHT * 0.8], 'world': [10, 0]},
-  {'photo': [PHOTO_WIDTH * 0.2, PHOTO_HEIGHT * 0.2], 'world': [0, 10]},
-  {'photo': [PHOTO_WIDTH * 0.8, PHOTO_HEIGHT * 0.2], 'world': [10, 10]},
+  {'photo': [PHOTO_WIDTH * 0.1, PHOTO_HEIGHT * 0.9], 'world': [0, 0]},
+  {'photo': [PHOTO_WIDTH * 0.9, PHOTO_HEIGHT * 0.9], 'world': [10, 0]},
+  {'photo': [PHOTO_WIDTH * 0.1, PHOTO_HEIGHT * 0.1], 'world': [0, 10]},
+  {'photo': [PHOTO_WIDTH * 0.9, PHOTO_HEIGHT * 0.1], 'world': [10, 10]},
 ];
 var photoToWorld;
 var worldToPhoto;
@@ -261,7 +261,6 @@ $('#save-transform').click(function() {
     elements.push(fixed.replace(/\.?0+$/, '').replace(/^-0$/, '0'));
   }
   var json = '[' + elements.join(', ') + ']\n';
-  saveAs(new File([json], 'transform.json',
-                  {'type': 'text/plain; charset=utf-8'}));
+  saveAs(new File([json], 'transform.json', {'type': 'text/plain'}));
 });
 </script>
