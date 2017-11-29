@@ -42,12 +42,14 @@ th { text-align: left; font-weight: bold; padding-bottom: 6px; }
     <td>
       <pre id="world-status" class="message"></pre>
       <pre id="transform" class="message"></pre>
+      <button id="save-transform">Save transform.json</button>
     </td>
   </tr>
 </table>
 
 <script src="jquery-1.5.1.min.js"></script>
 <script src="projection.js"></script>
+<script src="filesaver.js"></script>
 <script>
 var PHOTO_WIDTH = 640;
 var PHOTO_HEIGHT = 512;
@@ -250,5 +252,16 @@ world.addEventListener('mousemove', function(event) {
   } else {
     hideCursors();
   }
+});
+
+$('#save-transform').click(function() {
+  var elements = [];
+  for (var i = 0; i < photoToWorld.length; i++) {
+    var fixed = photoToWorld[i].toFixed(12);
+    elements.push(fixed.replace(/\.?0+$/, '').replace(/^-0$/, '0'));
+  }
+  var json = '[' + elements.join(', ') + ']\n';
+  saveAs(new File([json], 'transform.json',
+                  {'type': 'text/plain; charset=utf-8'}));
 });
 </script>
