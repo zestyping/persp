@@ -43,6 +43,8 @@ th { text-align: left; font-weight: bold; padding-bottom: 6px; }
       <pre id="world-status" class="message"></pre>
       <pre id="transform" class="message"></pre>
       <button id="save-transform">Save transform.json</button>
+      <button id="load-transform">Load a transform file</button>
+      <input id="file-selector" type="file" style="display: none">
     </td>
   </tr>
 </table>
@@ -51,8 +53,8 @@ th { text-align: left; font-weight: bold; padding-bottom: 6px; }
 <script src="projection.js"></script>
 <script src="filesaver.js"></script>
 <script>
-var PHOTO_WIDTH = 640;
-var PHOTO_HEIGHT = 512;
+var CANVAS_WIDTH = 640;
+var CANVAS_HEIGHT = 512;
 var CURSOR_WIDTH = 17;
 var CURSOR_HEIGHT = 17;
 var PIN_WIDTH = 27;
@@ -67,18 +69,22 @@ var worldCanvas = $('#world-canvas')[0];
 var worldCursor = $('#world-cursor')[0];
 var worldRect = $('#world-rect')[0];
 
-photoCanvas.style.width = PHOTO_WIDTH + 'px';
-photoCanvas.style.height = PHOTO_HEIGHT + 'px';
-worldCanvas.style.width = PHOTO_WIDTH + 'px';
-worldCanvas.style.height = PHOTO_HEIGHT + 'px';
+photoCanvas.style.width = CANVAS_WIDTH + 'px';
+photoCanvas.style.height = CANVAS_HEIGHT + 'px';
+worldCanvas.style.width = CANVAS_WIDTH + 'px';
+worldCanvas.style.height = CANVAS_HEIGHT + 'px';
 
 var hoveredPin = null;
 var grabbedPin = null;
+var xLeft = Math.floor(CANVAS_WIDTH * 0.1);
+var xRight = Math.floor(CANVAS_WIDTH * 0.9);
+var yTop = Math.floor(CANVAS_HEIGHT * 0.1);
+var yBottom = Math.floor(CANVAS_HEIGHT * 0.9);
 var pins = [
-  {'photo': [PHOTO_WIDTH * 0.1, PHOTO_HEIGHT * 0.9], 'world': [0, 0]},
-  {'photo': [PHOTO_WIDTH * 0.9, PHOTO_HEIGHT * 0.9], 'world': [10, 0]},
-  {'photo': [PHOTO_WIDTH * 0.1, PHOTO_HEIGHT * 0.1], 'world': [0, 10]},
-  {'photo': [PHOTO_WIDTH * 0.9, PHOTO_HEIGHT * 0.1], 'world': [10, 10]},
+  {'photo': [xLeft, yBottom], 'world': [0, 0]},
+  {'photo': [xRight, yBottom], 'world': [10, 0]},
+  {'photo': [xLeft, yTop], 'world': [0, 10]},
+  {'photo': [xRight, yTop], 'world': [10, 10]},
 ];
 var photoToWorld;
 var worldToPhoto;
@@ -135,10 +141,10 @@ var worldScale;
 function updateWorldRect() {
   worldWidth = $('#world-width').val() - 0;
   worldHeight = $('#world-height').val() - 0;
-  worldScale = Math.min((PHOTO_WIDTH * 0.8) / worldWidth,
-                        (PHOTO_HEIGHT * 0.8) / worldHeight);
-  worldOriginX = (PHOTO_WIDTH / 2) - (worldWidth*worldScale / 2);
-  worldOriginY = (PHOTO_HEIGHT / 2) + (worldHeight*worldScale / 2);
+  worldScale = Math.min((CANVAS_WIDTH * 0.8) / worldWidth,
+                        (CANVAS_HEIGHT * 0.8) / worldHeight);
+  worldOriginX = (CANVAS_WIDTH / 2) - (worldWidth*worldScale / 2);
+  worldOriginY = (CANVAS_HEIGHT / 2) + (worldHeight*worldScale / 2);
   worldRect.style.left = worldOriginX + 'px';
   worldRect.style.top = (worldOriginY - worldHeight*worldScale) + 'px';
   worldRect.style.width = (worldWidth*worldScale - 1) + 'px';
@@ -163,7 +169,7 @@ function showCursor(cursor, canvas, x, y) {
 }
 
 function showPhotoCursor(x, y) {
-  if (x >= 0 && x < PHOTO_WIDTH && y >= 0 && y < PHOTO_HEIGHT) {
+  if (x >= 0 && x < CANVAS_WIDTH && y >= 0 && y < CANVAS_HEIGHT) {
     showCursor(photoCursor, photoCanvas, x, y);
   } else {
     photoCursor.style.display = 'none';
@@ -173,7 +179,7 @@ function showPhotoCursor(x, y) {
 function showWorldCursor(x, y) {
   var cx = worldOriginX + x*worldScale;
   var cy = worldOriginY - y*worldScale;
-  if (cx >= 0 && cx < PHOTO_WIDTH && cy >= 0 && cy < PHOTO_HEIGHT) {
+  if (cx >= 0 && cx < CANVAS_WIDTH && cy >= 0 && cy < CANVAS_HEIGHT) {
     showCursor(worldCursor, worldCanvas, cx, cy);
   } else {
     worldCursor.style.display = 'none';
@@ -215,7 +221,7 @@ photo.addEventListener('mousemove', function(event) {
 });
 
 function updatePhotoCursor(x, y) {
-  if (x >= 0 && x < PHOTO_WIDTH && y >= 0 && y < PHOTO_HEIGHT) {
+  if (x >= 0 && x < CANVAS_WIDTH && y >= 0 && y < CANVAS_HEIGHT) {
     if (grabbedPin) {
       hideCursors();
       $('#photo-status').text('x = ' + x + '\n' +
@@ -245,7 +251,7 @@ world.addEventListener('mousemove', function(event) {
   var offset = $('#world-canvas').offset();
   var x = event.pageX - offset.left;
   var y = event.pageY - offset.top;
-  if (x >= 0 && x < PHOTO_WIDTH && y >= 0 && y < PHOTO_HEIGHT) {
+  if (x >= 0 && x < CANVAS_WIDTH && y >= 0 && y < CANVAS_HEIGHT) {
     var wx = (x - worldOriginX) / worldScale;
     var wy = (worldOriginY - y) / worldScale;
     updateCursors(applyTransform(worldToPhoto, wx, wy), [wx, wy]);
@@ -260,7 +266,34 @@ $('#save-transform').click(function() {
     var fixed = photoToWorld[i].toFixed(12);
     elements.push(fixed.replace(/\.?0+$/, '').replace(/^-0$/, '0'));
   }
-  var json = '[' + elements.join(', ') + ']\n';
+  var pinCoords = [];
+  for (var i = 0; i < pins.length; i++) {
+    pinCoords.push({'photo': pins[i].photo, 'world': pins[i].world});
+  }
+  var json = '{\n' +
+    '"coefficients": [' + elements.join(', ') + '],\n' +
+    '"pins": ' + JSON.stringify(pinCoords) + '\n' +
+  '}\n';
   saveAs(new File([json], 'transform.json', {'type': 'text/plain'}));
+});
+
+$('#file-selector').change(function() {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var data = JSON.parse(e.target.result);
+    var pinCoords = data.pins;
+    for (var i = 0; i < pinCoords.length; i++) {
+      pins[i].photo = pinCoords[i].photo;
+      pins[i].world = pinCoords[i].world;
+    }
+    $('#world-width').val(pins[3].world[0]);
+    $('#world-height').val(pins[3].world[1]);
+    updateWorldRect();
+  };
+  reader.readAsText(this.files[0]);
+});
+
+$('#load-transform').click(function() {
+  $('#file-selector').click();
 });
 </script>
