@@ -45,6 +45,7 @@ th { text-align: left; font-weight: bold; padding-bottom: 6px; }
       <pre id="photo-status" class="message"></pre>
       <pre id="photo-help" class="message"></pre>
       <button id="load-photo">Load a photo</button>
+      <button id="reset-pins">Reset pins</button>
       <input id="image-selector" type="file" style="display: none">
     </td>
     <td>
@@ -95,6 +96,10 @@ $('#photo-image').load(function() {
   photoScale = Math.min(CANVAS_WIDTH / photoWidth, CANVAS_HEIGHT / photoHeight);
   $('#photo-image')[0].style.width = (photoWidth * photoScale) + 'px';
   $('#photo-image')[0].style.height = (photoHeight * photoScale) + 'px';
+  updateWorldRect();
+});
+
+$('#reset-pins').click(function() {
   resetPins();
   updateWorldRect();
 });
