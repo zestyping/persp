@@ -2,12 +2,13 @@
 body { font-family: helvetica neue, sans-serif; font-size: 14px; margin: 18px; }
 table th, table td { padding-right: 18px; vertical-align: top; }
 #world-settings { float: right; }
-#world-settings, #world-settings input { font-family: andale mono, monospace; font-size: 24px; }
+#world-settings, #world-settings input { font-family: andale mono, monospace; font-size: 20px; }
 .view { position: relative; }
-.canvas { cursor: none; }
+.canvas { position: relative; cursor: none; }
 .cursor { position: absolute; cursor: none; z-index: 1; }
 .pin { position: absolute; cursor: none; }
 .message { font-family: andale mono, monospace; font-size: 24px; }
+#photo-image { position: absolute; left: 0; bottom: 0; image-rendering: pixelated; }
 #world-rect { position: absolute; border: 1px solid black; }
 th { text-align: left; font-weight: bold; padding-bottom: 6px; }
 </style>
@@ -27,7 +28,9 @@ th { text-align: left; font-weight: bold; padding-bottom: 6px; }
   </tr>
   <tr>
     <td id="photo" class="view">
-      <img id="photo-canvas" class="canvas" src="photo.jpg">
+      <div id="photo-canvas" class="canvas">
+        <img id="photo-image" src="photo.jpg">
+      </div>
       <img id="photo-cursor" class="cursor" src="cursor.png">
     </td>
     <td id="world" class="view">
@@ -41,6 +44,8 @@ th { text-align: left; font-weight: bold; padding-bottom: 6px; }
     <td>
       <pre id="photo-status" class="message"></pre>
       <pre id="photo-help" class="message"></pre>
+      <button id="load-photo">Load a photo</button>
+      <input id="image-selector" type="file" style="display: none">
     </td>
     <td>
       <pre id="world-status" class="message"></pre>
@@ -80,17 +85,40 @@ photoCanvas.style.height = CANVAS_HEIGHT + 'px';
 worldCanvas.style.width = CANVAS_WIDTH + 'px';
 worldCanvas.style.height = CANVAS_HEIGHT + 'px';
 
+var photoWidth = CANVAS_WIDTH;
+var photoHeight = CANVAS_HEIGHT;
+var photoScale = 1;
+
+$('#photo-image').load(function() {
+  photoWidth = $('#photo-image')[0].naturalWidth;
+  photoHeight = $('#photo-image')[0].naturalHeight;
+  photoScale = Math.min(CANVAS_WIDTH / photoWidth, CANVAS_HEIGHT / photoHeight);
+  $('#photo-image')[0].style.width = (photoWidth * photoScale) + 'px';
+  $('#photo-image')[0].style.height = (photoHeight * photoScale) + 'px';
+  resetPins();
+  updateWorldRect();
+});
+
+$('#load-photo').click(function() {
+  $('#image-selector').click();
+});
+
+$('#image-selector').change(function() {
+  console.log(this.files[0]);
+  $('#photo-image')[0].src = URL.createObjectURL(this.files[0]);
+});
+
 var hoveredPin = null;
 var grabbedPin = null;
-var xLeft = Math.floor(CANVAS_WIDTH * 0.1);
-var xRight = Math.floor(CANVAS_WIDTH * 0.9);
-var yTop = Math.floor(CANVAS_HEIGHT * 0.1);
-var yBottom = Math.floor(CANVAS_HEIGHT * 0.9);
+var xLeft = Math.floor(photoWidth * 0.1);
+var xRight = Math.floor(photoWidth * 0.9);
+var yTop = Math.floor(photoHeight * 0.1);
+var yBottom = Math.floor(photoHeight * 0.9);
 var pins = [
-  {'photo': [xLeft, yBottom], 'world': [0, 0]},
-  {'photo': [xRight, yBottom], 'world': [10, 0]},
-  {'photo': [xLeft, yTop], 'world': [0, 10]},
-  {'photo': [xRight, yTop], 'world': [10, 10]},
+  {'photo': [0, 10], 'world': [0, 0]},
+  {'photo': [10, 10], 'world': [10, 0]},
+  {'photo': [0, 0], 'world': [0, 10]},
+  {'photo': [10, 0], 'world': [10, 10]},
 ];
 var photoToWorld;
 var worldToPhoto;
@@ -100,6 +128,17 @@ for (var i = 0; i < pins.length; i++) {
   pins[i].worldImg = $('<img class="pin" src="pin.png">')[0];
   $('#photo').append(pins[i].photoImg);
   $('#world').append(pins[i].worldImg);
+}
+
+function resetPins() {
+  var xLeft = Math.floor(photoWidth * 0.1);
+  var xRight = Math.floor(photoWidth * 0.9);
+  var yTop = Math.floor(photoHeight * 0.1);
+  var yBottom = Math.floor(photoHeight * 0.9);
+  pins[0].photo = [xLeft, yBottom];
+  pins[1].photo = [xRight, yBottom];
+  pins[2].photo = [xLeft, yTop];
+  pins[3].photo = [xRight, yTop];
 }
 
 function showPin(pinImg, canvas, x, y) {
@@ -115,10 +154,12 @@ function toDecimals(n, decimals) {
 
 function updatePins() {
   for (var i = 0; i < pins.length; i++) {
-    showPin(pins[i].photoImg, photoCanvas, pins[i].photo[0], pins[i].photo[1]);
-    var wpx = worldOriginX + (pins[i].world[0] - worldXOffset)*worldScale;
-    var wpy = worldOriginY - (pins[i].world[1] - worldYOffset)*worldScale;
-    showPin(pins[i].worldImg, worldCanvas, wpx, wpy);
+    var pcx = pins[i].photo[0]*photoScale;
+    var pcy = CANVAS_HEIGHT - (photoHeight - pins[i].photo[1])*photoScale;
+    showPin(pins[i].photoImg, photoCanvas, pcx, pcy);
+    var wcx = worldOriginX + (pins[i].world[0] - worldXOffset)*worldScale;
+    var wcy = worldOriginY - (pins[i].world[1] - worldYOffset)*worldScale;
+    showPin(pins[i].worldImg, worldCanvas, wcx, wcy);
   }
   var result = computeTransforms(pins);
   photoToWorld = result[0];
@@ -172,28 +213,31 @@ function updateWorldRect() {
 }
 
 hideCursors();
+resetPins();
 updateWorldRect();
 $('#world-settings input').change(updateWorldRect);
 
-function showCursor(cursor, canvas, x, y) {
+function showCursor(cursor, canvas, cx, cy) {
   cursor.style.display = 'block';
-  cursor.style.left = (canvas.offsetLeft + x - (CURSOR_WIDTH - 1)/2) + 'px';
-  cursor.style.top = (canvas.offsetTop + y - (CURSOR_HEIGHT - 1)/2) + 'px';
+  cursor.style.left = (canvas.offsetLeft + cx - (CURSOR_WIDTH - 1)/2) + 'px';
+  cursor.style.top = (canvas.offsetTop + cy - (CURSOR_HEIGHT - 1)/2) + 'px';
   cursor.style.width = CURSOR_WIDTH + 'px';
   cursor.style.height = CURSOR_HEIGHT + 'px';
 }
 
-function showPhotoCursor(x, y) {
-  if (x >= 0 && x < CANVAS_WIDTH && y >= 0 && y < CANVAS_HEIGHT) {
-    showCursor(photoCursor, photoCanvas, x, y);
+function showPhotoCursor(px, py) {
+  var cx = px*photoScale;
+  var cy = CANVAS_HEIGHT - (photoHeight - py)*photoScale;
+  if (cx >= 0 && cx < CANVAS_WIDTH && cy >= 0 && cy < CANVAS_HEIGHT) {
+    showCursor(photoCursor, photoCanvas, cx, cy);
   } else {
     photoCursor.style.display = 'none';
   }
 }
 
-function showWorldCursor(x, y) {
-  var cx = worldOriginX + (x - worldXOffset)*worldScale;
-  var cy = worldOriginY - (y - worldYOffset)*worldScale;
+function showWorldCursor(wx, wy) {
+  var cx = worldOriginX + (wx - worldXOffset)*worldScale;
+  var cy = worldOriginY - (wy - worldYOffset)*worldScale;
   if (cx >= 0 && cx < CANVAS_WIDTH && cy >= 0 && cy < CANVAS_HEIGHT) {
     showCursor(worldCursor, worldCanvas, cx, cy);
   } else {
@@ -202,12 +246,12 @@ function showWorldCursor(x, y) {
 }
 
 function updateCursors(photoXy, worldXy) {
-  var px = Math.floor(photoXy[0]), py = Math.floor(photoXy[1]);
+  var px = photoXy[0], py = photoXy[1];
   var wx = worldXy[0], wy = worldXy[1];
   showPhotoCursor(px, py);
   showWorldCursor(wx, wy);
-  $('#photo-status').text('x = ' + px + '\n' +
-                          'y = ' + py);
+  $('#photo-status').text('x = ' + px.toFixed(1) + '\n' +
+                          'y = ' + py.toFixed(1));
   $('#world-status').text('wx = ' + wx.toFixed(DIST_DECIMALS) + UNIT + '\n' +
                           'wy = ' + wy.toFixed(DIST_DECIMALS) + UNIT);
 }
@@ -221,12 +265,17 @@ function hideCursors() {
 
 photo.addEventListener('click', function(event) {
   if (grabbedPin) {  // drop it
-    var x = grabbedPin.photo[0], y = grabbedPin.photo[1];
+    var px = grabbedPin.photo[0], py = grabbedPin.photo[1];
+    var cx = px*photoScale;
+    var cy = CANVAS_HEIGHT - (photoHeight - py)*photoScale;
     grabbedPin = null;
-    updatePhotoCursor(x, y);
+    updatePhotoCursor(cx, cy);
   } else if (hoveredPin) {  // grab it
     grabbedPin = hoveredPin;
-    updatePhotoCursor(grabbedPin.photo[0], grabbedPin.photo[1]);
+    var px = grabbedPin.photo[0], py = grabbedPin.photo[1];
+    var cx = px*photoScale;
+    var cy = CANVAS_HEIGHT - (photoHeight - py)*photoScale;
+    updatePhotoCursor(cx, cy);
   }
 });
 
@@ -235,22 +284,24 @@ photo.addEventListener('mousemove', function(event) {
   updatePhotoCursor(event.pageX - offset.left, event.pageY - offset.top);
 });
 
-function updatePhotoCursor(x, y) {
-  if (x >= 0 && x < CANVAS_WIDTH && y >= 0 && y < CANVAS_HEIGHT) {
+function updatePhotoCursor(cx, cy) {
+  if (cx >= 0 && cx < CANVAS_WIDTH && cy >= 0 && cy < CANVAS_HEIGHT) {
+    var px = cx/photoScale;
+    var py = photoHeight - (CANVAS_HEIGHT - cy)/photoScale;
     if (grabbedPin) {
       hideCursors();
-      $('#photo-status').text('x = ' + x + '\n' +
-                              'y = ' + y);
+      $('#photo-status').text('x = ' + px.toFixed(1) + '\n' +
+                              'y = ' + py.toFixed(1));
       $('#photo-help').text('click to drop');
-      grabbedPin.photo[0] = x;
-      grabbedPin.photo[1] = y;
+      grabbedPin.photo[0] = px;
+      grabbedPin.photo[1] = py;
       updatePins();
     } else {
-      updateCursors([x, y], applyTransform(photoToWorld, x, y));
+      updateCursors([px, py], applyTransform(photoToWorld, px, py));
       hoveredPin = null;
       for (var i = 0; i < pins.length; i++) {
-        if (Math.abs(pins[i].photo[0] - x) < PIN_HIT_RADIUS &&
-            Math.abs(pins[i].photo[1] - y) < PIN_HIT_RADIUS) {
+        if (Math.abs(pins[i].photo[0] - px)*photoScale < PIN_HIT_RADIUS &&
+            Math.abs(pins[i].photo[1] - py)*photoScale < PIN_HIT_RADIUS) {
           hoveredPin = pins[i];
         }
       }
@@ -264,11 +315,11 @@ function updatePhotoCursor(x, y) {
 
 world.addEventListener('mousemove', function(event) {
   var offset = $('#world-canvas').offset();
-  var x = event.pageX - offset.left;
-  var y = event.pageY - offset.top;
-  if (x >= 0 && x < CANVAS_WIDTH && y >= 0 && y < CANVAS_HEIGHT) {
-    var wx = (x - worldOriginX) / worldScale + worldXOffset;
-    var wy = (worldOriginY - y) / worldScale + worldYOffset;
+  var cx = event.pageX - offset.left;
+  var cy = event.pageY - offset.top;
+  if (cx >= 0 && cx < CANVAS_WIDTH && cy >= 0 && cy < CANVAS_HEIGHT) {
+    var wx = (cx - worldOriginX) / worldScale + worldXOffset;
+    var wy = (worldOriginY - cy) / worldScale + worldYOffset;
     updateCursors(applyTransform(worldToPhoto, wx, wy), [wx, wy]);
   } else {
     hideCursors();
